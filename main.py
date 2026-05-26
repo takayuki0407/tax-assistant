@@ -28,6 +28,16 @@ class BundleFile(BaseModel):
     filename: str
     content: str
 
+
+def _safe_filename(title: str, ext: str, max_bytes: int = 200) -> str:
+    """Return a filename whose UTF-8 length stays within max_bytes."""
+    safe = re.sub(r'[\\/:*?"<>|　\s]', "_", title)
+    encoded = safe.encode("utf-8")
+    if len(encoded) <= max_bytes:
+        return f"{safe}{ext}"
+    truncated = encoded[:max_bytes].decode("utf-8", errors="ignore")
+    return f"{truncated}…{ext}"
+
 QUICK_SELECT_LAWS = [
     {"law_title": "所得税法", "search_query": "所得税法"},
     {"law_title": "法人税法", "search_query": "法人税法"},
@@ -94,11 +104,10 @@ async def get_markdown(law_id: str):
 
     md = generate_markdown(doc)
     article_count = count_articles(doc)
-    safe_title = re.sub(r'[\\/:*?"<>|　\s]', "_", doc.law_title)
 
     if len(md) <= MAX_SINGLE_FILE_CHARS:
         return JSONResponse(content=MarkdownResponse(
-            filename=f"{safe_title}.md",
+            filename=_safe_filename(doc.law_title, ".md"),
             content=md,
             char_count=len(md),
             article_count=article_count,
@@ -113,7 +122,7 @@ async def get_markdown(law_id: str):
             zf.writestr(fname, content.encode("utf-8"))
     buf.seek(0)
 
-    zip_filename = f"{safe_title}.zip"
+    zip_filename = _safe_filename(doc.law_title, ".zip")
     # RFC 6266: encode non-ASCII filename for Content-Disposition header
     encoded_name = urllib.parse.quote(zip_filename)
 

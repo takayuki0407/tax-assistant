@@ -64,7 +64,11 @@ def generate_split_markdown(doc: LawDocument) -> list[tuple[str, str]]:
         _render_chapter(ch, lines)
         safe_title = re.sub(r'[\\/:*?"<>|　\s]', "_", title)
         safe_law = re.sub(r'[\\/:*?"<>|　\s]', "_", doc.law_title)
-        filename = f"{safe_law}_{safe_title}.md"
+        base = f"{safe_law}_{safe_title}"
+        encoded = base.encode("utf-8")
+        if len(encoded) > 200:
+            base = encoded[:200].decode("utf-8", errors="ignore") + "…"
+        filename = f"{base}.md"
         files.append((filename, "\n".join(lines)))
     return files
 
