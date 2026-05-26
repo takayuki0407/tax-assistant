@@ -23,6 +23,7 @@ QUICK_SELECT_LAWS = [
     {"law_title": "法人税法", "search_query": "法人税法"},
     {"law_title": "消費税法", "search_query": "消費税法"},
     {"law_title": "相続税法", "search_query": "相続税法"},
+    {"law_title": "租税特別措置法", "search_query": "租税特別措置法"},
     {"law_title": "法人税法施行令", "search_query": "法人税法施行令"},
     {"law_title": "所得税法施行令", "search_query": "所得税法施行令"},
 ]

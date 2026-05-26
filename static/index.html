@@ -43,6 +43,7 @@
         <table id="results-table">
           <thead>
             <tr>
+              <th class="col-check"><input type="checkbox" id="check-all" title="すべて選択"></th>
               <th>法令名</th>
               <th>法令番号</th>
               <th>種別</th>
@@ -52,6 +53,25 @@
           <tbody id="results-body"></tbody>
         </table>
       </div>
+    </section>
+
+    <!-- Batch action bar -->
+    <div id="batch-bar" class="batch-bar hidden">
+      <span id="batch-count-label">0件選択中</span>
+      <button class="btn btn-success" id="batch-generate-btn">一括Markdownを生成</button>
+    </div>
+
+    <!-- Section: Batch progress -->
+    <section class="card hidden" id="section-batch">
+      <h2>一括生成</h2>
+      <div class="batch-progress-header">
+        <span id="batch-progress-label">処理中…</span>
+        <span id="batch-progress-fraction"></span>
+      </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-bar-fill"></div>
+      </div>
+      <ul id="batch-progress-list" class="batch-progress-list"></ul>
     </section>
 
     <!-- Section 3: 生成 -->
@@ -115,6 +135,7 @@
     <p>データ出典: <a href="https://laws.e-gov.go.jp" target="_blank" rel="noopener">e-Gov法令検索</a>（総務省）</p>
   </footer>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

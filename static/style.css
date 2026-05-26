@@ -306,5 +306,66 @@ footer {
 }
 footer a { color: var(--gray-600); }
 
+/* Batch action bar */
+.batch-bar {
+  position: sticky;
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--navy);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 14px 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25);
+  z-index: 100;
+}
+#batch-count-label { font-size: .95rem; font-weight: 600; }
+
+/* Checkbox column */
+.col-check { width: 36px; }
+input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+
+/* Batch progress */
+.batch-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: .9rem;
+  color: var(--gray-600);
+}
+.progress-bar-track {
+  height: 8px;
+  background: var(--gray-200);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width .4s ease;
+  width: 0%;
+}
+.batch-progress-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.batch-progress-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .875rem;
+  color: var(--gray-600);
+}
+.batch-progress-list li.done { color: var(--success); }
+.batch-progress-list li.processing { color: var(--accent); font-weight: 600; }
+.batch-progress-list li.error { color: var(--danger); }
+.batch-status-icon { font-size: 1rem; width: 20px; text-align: center; }
+
 /* Utilities */
 .hidden { display: none !important; }
