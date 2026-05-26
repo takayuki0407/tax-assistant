@@ -5,9 +5,12 @@ import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from datetime import date
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from app.api_client import close_client, get_law_data, search_laws
 from app.exceptions import EGovAPIError, LawNotFoundError, XMLParseError
@@ -19,6 +22,11 @@ from app.markdown_generator import (
 )
 from app.models import LawSearchResult, MarkdownResponse
 from app.xml_parser import parse_law_tree
+
+
+class BundleFile(BaseModel):
+    filename: str
+    content: str
 
 QUICK_SELECT_LAWS = [
     {"law_title": "所得税法", "search_query": "所得税法"},
@@ -107,6 +115,31 @@ async def get_markdown(law_id: str):
 
     zip_filename = f"{safe_title}.zip"
     # RFC 6266: encode non-ASCII filename for Content-Disposition header
+    encoded_name = urllib.parse.quote(zip_filename)
+
+    return Response(
+        content=buf.read(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"},
+    )
+
+
+@app.post("/api/bundle")
+async def bundle_markdown(files: list[BundleFile]):
+    """Receive collected markdown content and return a single ZIP file."""
+    if not files:
+        raise HTTPException(status_code=400, detail="ファイルが指定されていません")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for f in files:
+            info = zipfile.ZipInfo(f.filename)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.flag_bits |= 0x800  # set UTF-8 encoding flag (EFS)
+            zf.writestr(info, f.content.encode("utf-8"))
+    buf.seek(0)
+
+    zip_filename = f"税法_NotebookLM用_{date.today().strftime('%Y%m%d')}.zip"
     encoded_name = urllib.parse.quote(zip_filename)
 
     return Response(

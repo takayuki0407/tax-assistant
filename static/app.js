@@ -273,19 +273,19 @@ async function doBatchGenerate() {
     return li;
   });
 
-  const zip = new JSZip();
+  // Collect {filename, content} for all laws sequentially
+  const collectedFiles = []; // {filename, content}
   let successCount = 0;
 
   for (let i = 0; i < laws.length; i++) {
     const law = laws[i];
     const li = listItems[i];
 
-    // Update progress
     li.className = 'processing';
     li.querySelector('.batch-status-icon').textContent = '▶';
-    batchProgressLabel.textContent = `処理中: ${law.law_title}`;
+    batchProgressLabel.textContent = `取得中: ${law.law_title}`;
     batchProgressFrac.textContent = `${i + 1} / ${laws.length}`;
-    progressBarFill.style.width = `${((i) / laws.length) * 100}%`;
+    progressBarFill.style.width = `${(i / laws.length) * 100}%`;
 
     try {
       const resp = await fetch(`/api/law/${encodeURIComponent(law.law_id)}/markdown`);
@@ -296,16 +296,18 @@ async function doBatchGenerate() {
 
       const contentType = resp.headers.get('Content-Type') || '';
       if (contentType.includes('application/zip')) {
-        // Large law returned as ZIP — extract and re-add to our ZIP
+        // Large law: server returned a ZIP — extract files from it using JSZip
         const blob = await resp.blob();
         const innerZip = await JSZip.loadAsync(blob);
         for (const [fname, file] of Object.entries(innerZip.files)) {
-          const content = await file.async('string');
-          zip.file(fname, content);
+          if (!file.dir) {
+            const content = await file.async('string');
+            collectedFiles.push({ filename: fname, content });
+          }
         }
       } else {
         const data = await resp.json();
-        zip.file(data.filename, data.content);
+        collectedFiles.push({ filename: data.filename, content: data.content });
       }
 
       li.className = 'done';
@@ -318,19 +320,38 @@ async function doBatchGenerate() {
     }
   }
 
+  if (successCount === 0) {
+    batchProgressLabel.textContent = `エラー: すべての法令の取得に失敗しました`;
+    batchProgressFrac.textContent = '';
+    batchGenerateBtn.disabled = false;
+    return;
+  }
+
+  // Send collected content to server for ZIP bundling
+  batchProgressLabel.textContent = `ZIPを作成中…`;
+  batchProgressFrac.textContent = '';
+  progressBarFill.style.width = '95%';
+
+  try {
+    const bundleResp = await fetch('/api/bundle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(collectedFiles),
+    });
+    if (!bundleResp.ok) {
+      throw new Error(`ZIP作成エラー: HTTP ${bundleResp.status}`);
+    }
+    const zipBlob = await bundleResp.blob();
+    const url = URL.createObjectURL(zipBlob);
+    triggerDownload(url, _extractFilename(bundleResp) || '税法_NotebookLM用.zip');
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (e) {
+    showError(e.message);
+  }
+
   progressBarFill.style.width = '100%';
   batchProgressLabel.textContent = `完了 (${successCount} / ${laws.length} 件成功)`;
-  batchProgressFrac.textContent = '';
   batchGenerateBtn.disabled = false;
-
-  if (successCount === 0) return;
-
-  // Bundle and download
-  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
-  const url = URL.createObjectURL(zipBlob);
-  triggerDownload(url, `税法_NotebookLM用_${today}.zip`);
-  URL.revokeObjectURL(url);
 }
 
 // ── Reset ──────────────────────────────────────────────────────────────────
