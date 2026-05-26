@@ -1,4 +1,6 @@
 import io
+import re
+import urllib.parse
 import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -84,13 +86,11 @@ async def get_markdown(law_id: str):
 
     md = generate_markdown(doc)
     article_count = count_articles(doc)
+    safe_title = re.sub(r'[\\/:*?"<>|　\s]', "_", doc.law_title)
 
     if len(md) <= MAX_SINGLE_FILE_CHARS:
-        import re
-        safe_title = re.sub(r'[\\/:*?"<>|　\s]', "_", doc.law_title)
-        filename = f"{safe_title}.md"
         return JSONResponse(content=MarkdownResponse(
-            filename=filename,
+            filename=f"{safe_title}.md",
             content=md,
             char_count=len(md),
             article_count=article_count,
@@ -105,14 +105,14 @@ async def get_markdown(law_id: str):
             zf.writestr(fname, content.encode("utf-8"))
     buf.seek(0)
 
-    import re
-    safe_title = re.sub(r'[\\/:*?"<>|　\s]', "_", doc.law_title)
     zip_filename = f"{safe_title}.zip"
+    # RFC 6266: encode non-ASCII filename for Content-Disposition header
+    encoded_name = urllib.parse.quote(zip_filename)
 
     return Response(
         content=buf.read(),
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'},
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"},
     )
 
 
