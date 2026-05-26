@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>税法アシスタント</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>税法アシスタント</h1>
+      <p class="subtitle">e-Gov法令APIから税法を取得し、NotebookLM用Markdownを生成します</p>
+    </div>
+  </header>
+
+  <main>
+    <!-- Section 1: 検索 -->
+    <section class="card" id="section-search">
+      <h2>法令を選択</h2>
+
+      <div class="quick-select" id="quick-select-buttons">
+        <!-- JS で生成 -->
+      </div>
+
+      <div class="search-row">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="法令名を入力（例：消費税法、所得税法施行規則）"
+          autocomplete="off"
+        >
+        <button class="btn btn-primary" id="search-btn">検索</button>
+      </div>
+
+      <div id="error-banner" class="error-banner hidden"></div>
+    </section>
+
+    <!-- Section 2: 検索結果 -->
+    <section class="card hidden" id="section-results">
+      <h2>検索結果</h2>
+      <div class="table-wrapper">
+        <table id="results-table">
+          <thead>
+            <tr>
+              <th>法令名</th>
+              <th>法令番号</th>
+              <th>種別</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 3: 生成 -->
+    <section class="card hidden" id="section-generate">
+      <h2>Markdown生成</h2>
+      <div class="selected-law-info">
+        <span class="label">選択中の法令</span>
+        <strong id="selected-law-name"></strong>
+        <span id="selected-law-num" class="law-num"></span>
+      </div>
+      <div id="generate-status" class="hidden">
+        <div class="spinner"></div>
+        <span id="generate-status-text">法令本文を取得・変換中です…（大きな法令は1分程度かかる場合があります）</span>
+      </div>
+      <button class="btn btn-primary" id="generate-btn">Markdownを生成する</button>
+    </section>
+
+    <!-- Section 4: ダウンロード -->
+    <section class="card hidden" id="section-download">
+      <h2>ダウンロード</h2>
+      <div class="stats-row">
+        <div class="stat-box">
+          <span class="stat-label">文字数</span>
+          <span id="stat-chars" class="stat-value">—</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">条文数</span>
+          <span id="stat-articles" class="stat-value">—</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">ファイル形式</span>
+          <span id="stat-format" class="stat-value">—</span>
+        </div>
+      </div>
+
+      <div id="preview-area" class="hidden">
+        <label class="preview-label">プレビュー（先頭500文字）</label>
+        <textarea id="preview-text" readonly rows="8"></textarea>
+      </div>
+
+      <div class="download-actions">
+        <button class="btn btn-success" id="download-btn">ダウンロード</button>
+        <button class="btn btn-secondary" id="reset-btn">別の法令を取得</button>
+      </div>
+
+      <details class="how-to">
+        <summary>NotebookLMへの読み込み手順</summary>
+        <ol>
+          <li>ダウンロードした <code>.md</code> ファイル（または ZIP を展開した各ファイル）を用意します</li>
+          <li><a href="https://notebooklm.google.com" target="_blank" rel="noopener">Google NotebookLM</a> を開き、ノートブックを作成または開きます</li>
+          <li>「ソースを追加」→「ファイルをアップロード」を選択します</li>
+          <li>ダウンロードした <code>.md</code> ファイルを選択してアップロードします</li>
+          <li>アップロード完了後、チャットで法令に関する質問ができます</li>
+        </ol>
+        <p class="tip">💡 複数の税法を別々のソースとして追加することで、横断的な質問にも対応できます</p>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <p>データ出典: <a href="https://laws.e-gov.go.jp" target="_blank" rel="noopener">e-Gov法令検索</a>（総務省）</p>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
