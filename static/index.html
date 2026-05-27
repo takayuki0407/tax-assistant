@@ -15,9 +15,28 @@
   </header>
 
   <main>
+    <!-- Section 0: 基本通達 -->
+    <section class="card" id="section-tsutatsu">
+      <h2>基本通達を取得 <span class="badge-nta">国税庁</span></h2>
+      <p class="section-note">国税庁の基本通達をスクレイピングしてNotebookLM用Markdownに変換します（1通達あたり1〜2分かかります）</p>
+      <div class="tsutatsu-grid" id="tsutatsu-grid">
+        <!-- JS で生成 -->
+      </div>
+      <div id="tsutatsu-progress" class="tsutatsu-progress hidden">
+        <div class="batch-progress-header">
+          <span id="tsutatsu-label">取得中…</span>
+          <span id="tsutatsu-frac"></span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="tsutatsu-bar-fill"></div>
+        </div>
+      </div>
+      <div id="tsutatsu-error" class="error-banner hidden"></div>
+    </section>
+
     <!-- Section 1: 検索 -->
     <section class="card" id="section-search">
-      <h2>法令を選択</h2>
+      <h2>法令を選択 <span class="badge-egov">e-Gov</span></h2>
 
       <div class="quick-select" id="quick-select-buttons">
         <!-- JS で生成 -->
@@ -132,7 +151,10 @@
   </main>
 
   <footer>
-    <p>データ出典: <a href="https://laws.e-gov.go.jp" target="_blank" rel="noopener">e-Gov法令検索</a>（総務省）</p>
+    <p>
+      法令データ: <a href="https://laws.e-gov.go.jp" target="_blank" rel="noopener">e-Gov法令検索</a>（総務省） ／
+      基本通達: <a href="https://www.nta.go.jp" target="_blank" rel="noopener">国税庁</a>
+    </p>
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>

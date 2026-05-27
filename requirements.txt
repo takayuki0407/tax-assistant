@@ -5,3 +5,4 @@ lxml>=5.2.0
 pydantic>=2.7.0
 aiofiles>=24.1.0
 python-multipart>=0.0.9
+beautifulsoup4>=4.12.0

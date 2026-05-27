@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\豊嶋隆之\\\\products\\\\tax_assistant\" -Recurse -Force | Select-Object FullName, @{Name=\"Type\"; Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}} | Sort-Object FullName | Format-Table -AutoSize)",
+      "WebFetch(domain:laws.e-gov.go.jp)",
+      "WebSearch",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\豊嶋隆之\\\\products\\\\tax_assistant\" -Recurse -Force -File | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\豊嶋隆之\\\\products\\\\tax_assistant\" -Recurse -Force -Directory | ForEach-Object { $_.FullName })",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:note.com)",
+      "PowerShell(Test-Path *)",
+      "Bash(pip --version)",
+      "Bash(pip list *)",
+      "Bash(Select-String -Pattern \"fastapi|flask|streamlit|uvicorn|httpx|requests|jinja|lxml|beautifulsoup\")",
+      "Bash(npm --version)",
+      "Bash(python *)"
+    ]
+  }
+}

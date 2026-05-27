@@ -367,5 +367,69 @@ input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-colo
 .batch-progress-list li.error { color: var(--danger); }
 .batch-status-icon { font-size: 1rem; width: 20px; text-align: center; }
 
+/* Section note */
+.section-note {
+  font-size: .85rem;
+  color: var(--gray-600);
+  margin-bottom: 16px;
+}
+
+/* Header badges */
+.badge-nta, .badge-egov {
+  display: inline-block;
+  font-size: .65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  vertical-align: middle;
+  margin-left: 8px;
+  letter-spacing: .04em;
+}
+.badge-nta  { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+.badge-egov { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+
+/* 基本通達 grid */
+.tsutatsu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.tsutatsu-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 12px;
+  background: #fff;
+  border: 1.5px solid var(--navy);
+  border-radius: var(--radius);
+  font-family: var(--font-ja);
+  font-size: .875rem;
+  font-weight: 600;
+  color: var(--navy);
+  cursor: pointer;
+  transition: background .15s, color .15s, box-shadow .15s;
+  text-align: center;
+  min-height: 72px;
+}
+.tsutatsu-btn:hover:not(:disabled) {
+  background: var(--navy);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(26,58,92,.25);
+}
+.tsutatsu-btn.active {
+  background: var(--navy-light);
+  color: #fff;
+}
+.tsutatsu-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.tsutatsu-btn-title { line-height: 1.4; }
+
+/* Tsutatsu progress area */
+.tsutatsu-progress { margin-top: 4px; }
+
 /* Utilities */
 .hidden { display: none !important; }

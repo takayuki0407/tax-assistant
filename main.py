@@ -1,6 +1,8 @@
 import io
+import json
 import re
 import urllib.parse
+import uuid
 import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -8,7 +10,7 @@ from pathlib import Path
 from datetime import date
 
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -21,12 +23,18 @@ from app.markdown_generator import (
     generate_split_markdown,
 )
 from app.models import LawSearchResult, MarkdownResponse
+from app.tsutatsu_scraper import CATALOG as TSUTATSU_CATALOG, scrape_tsutatsu
+from app.tsutatsu_md import generate_tsutatsu_markdown
 from app.xml_parser import parse_law_tree
 
 
 class BundleFile(BaseModel):
     filename: str
     content: str
+
+
+# In-memory store for tsutatsu ZIP results (job_id → bytes)
+_tsutatsu_results: dict[str, bytes] = {}
 
 
 def _safe_filename(title: str, ext: str, max_bytes: int = 200) -> str:
@@ -153,6 +161,83 @@ async def bundle_markdown(files: list[BundleFile]):
 
     return Response(
         content=buf.read(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"},
+    )
+
+
+# ── 基本通達 endpoints ─────────────────────────────────────────────────────────
+
+@app.get("/api/tsutatsu", response_model=list[dict])
+async def get_tsutatsu_list():
+    """Return list of available 基本通達."""
+    return [
+        {"key": key, "title": info["title"]}
+        for key, info in TSUTATSU_CATALOG.items()
+    ]
+
+
+@app.get("/api/tsutatsu/{key}/stream")
+async def stream_tsutatsu(key: str):
+    """SSE stream: progress events while scraping, then emits job_id when done."""
+    if key not in TSUTATSU_CATALOG:
+        raise HTTPException(status_code=404, detail="通達が見つかりません")
+
+    async def generator():
+        job_id = str(uuid.uuid4())
+        pages: list[dict] = []
+        title = TSUTATSU_CATALOG[key]["title"]
+
+        try:
+            async for event in scrape_tsutatsu(key):
+                etype = event.get("type")
+                if etype in ("start", "progress"):
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                elif etype == "sections":
+                    pages = event.get("pages", [])
+                elif etype == "error":
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                    return
+
+            # Build ZIP from collected pages
+            md_files = generate_tsutatsu_markdown(title, pages)
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                for fname, content in md_files:
+                    zi = zipfile.ZipInfo(fname)
+                    zi.compress_type = zipfile.ZIP_DEFLATED
+                    zi.flag_bits |= 0x800  # UTF-8 EFS
+                    zf.writestr(zi, content.encode("utf-8"))
+            _tsutatsu_results[job_id] = buf.getvalue()
+
+            done_evt = {"type": "done", "job_id": job_id, "files": len(md_files)}
+            yield f"data: {json.dumps(done_evt, ensure_ascii=False)}\n\n"
+
+        except Exception as e:
+            err = {"type": "error", "message": str(e)}
+            yield f"data: {json.dumps(err, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/api/tsutatsu/{key}/result/{job_id}")
+async def download_tsutatsu_result(key: str, job_id: str):
+    """Download ZIP produced by the stream endpoint."""
+    data = _tsutatsu_results.pop(job_id, None)
+    if data is None:
+        raise HTTPException(
+            status_code=404,
+            detail="結果が見つかりません（既にダウンロード済みかタイムアウトした可能性があります）",
+        )
+    title = TSUTATSU_CATALOG.get(key, {}).get("title", key)
+    zip_filename = _safe_filename(title, ".zip")
+    encoded_name = urllib.parse.quote(zip_filename)
+    return Response(
+        content=data,
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"},
     )
