@@ -48,15 +48,51 @@ def _safe_filename(title: str, ext: str, max_bytes: int = 200) -> str:
     truncated = encoded[:max_bytes].decode("utf-8", errors="ignore")
     return f"{truncated}…{ext}"
 
-QUICK_SELECT_LAWS = [
-    {"law_title": "所得税法", "search_query": "所得税法"},
-    {"law_title": "法人税法", "search_query": "法人税法"},
-    {"law_title": "消費税法", "search_query": "消費税法"},
-    {"law_title": "相続税法", "search_query": "相続税法"},
-    {"law_title": "贈与税（相続税法）", "search_query": "相続税法"},
-    {"law_title": "租税特別措置法", "search_query": "租税特別措置法"},
-    {"law_title": "法人税法施行令", "search_query": "法人税法施行令"},
-    {"law_title": "所得税法施行令", "search_query": "所得税法施行令"},
+QUICK_SELECT_GROUPS = [
+    {
+        "group": "所得税",
+        "laws": [
+            {"law_title": "所得税法",       "search_query": "所得税法"},
+            {"law_title": "所得税法施行令",  "search_query": "所得税法施行令"},
+            {"law_title": "所得税法施行規則","search_query": "所得税法施行規則"},
+        ],
+    },
+    {
+        "group": "法人税・地方法人税",
+        "laws": [
+            {"law_title": "法人税法",           "search_query": "法人税法"},
+            {"law_title": "法人税法施行令",      "search_query": "法人税法施行令"},
+            {"law_title": "法人税法施行規則",    "search_query": "法人税法施行規則"},
+            {"law_title": "地方法人税法",        "search_query": "地方法人税法"},
+            {"law_title": "地方法人税法施行令",  "search_query": "地方法人税法施行令"},
+            {"law_title": "地方法人税法施行規則","search_query": "地方法人税法施行規則"},
+        ],
+    },
+    {
+        "group": "消費税",
+        "laws": [
+            {"law_title": "消費税法",       "search_query": "消費税法"},
+            {"law_title": "消費税法施行令",  "search_query": "消費税法施行令"},
+            {"law_title": "消費税法施行規則","search_query": "消費税法施行規則"},
+        ],
+    },
+    {
+        "group": "相続税・贈与税",
+        "laws": [
+            {"law_title": "相続税法（相続税）",  "search_query": "相続税法"},
+            {"law_title": "相続税法施行令",      "search_query": "相続税法施行令"},
+            {"law_title": "相続税法施行規則",    "search_query": "相続税法施行規則"},
+            {"law_title": "贈与税（相続税法）",  "search_query": "相続税法"},
+        ],
+    },
+    {
+        "group": "租税特別措置",
+        "laws": [
+            {"law_title": "租税特別措置法",       "search_query": "租税特別措置法"},
+            {"law_title": "租税特別措置法施行令",  "search_query": "租税特別措置法施行令"},
+            {"law_title": "租税特別措置法施行規則","search_query": "租税特別措置法施行規則"},
+        ],
+    },
 ]
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -82,7 +118,7 @@ async def root():
 
 @app.get("/api/quickselect", response_model=list[dict])
 async def get_quick_select():
-    return QUICK_SELECT_LAWS
+    return QUICK_SELECT_GROUPS
 
 
 @app.get("/api/search", response_model=list[LawSearchResult])

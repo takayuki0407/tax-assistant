@@ -75,21 +75,45 @@ main {
   border-bottom: 2px solid var(--gray-200);
 }
 
-/* Quick select buttons */
+/* Quick select — grouped layout */
 .quick-select {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 10px;
   margin-bottom: 16px;
+}
+.quick-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.quick-group-label {
+  flex-shrink: 0;
+  min-width: 7rem;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--navy);
+  background: var(--gray-100);
+  border: 1px solid var(--gray-200);
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin-top: 2px;
+  text-align: center;
+  white-space: nowrap;
+}
+.quick-group-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 .quick-btn {
   background: #fff;
   border: 1.5px solid var(--navy);
   color: var(--navy);
   border-radius: 20px;
-  padding: 5px 16px;
+  padding: 4px 14px;
   font-family: var(--font-ja);
-  font-size: .875rem;
+  font-size: .8125rem;
   cursor: pointer;
   transition: background .15s, color .15s;
 }

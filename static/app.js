@@ -76,19 +76,36 @@ checkAll.addEventListener('change', () => {
 async function loadQuickSelect() {
   try {
     const resp = await fetch('/api/quickselect');
-    const laws = await resp.json();
+    const groups = await resp.json();
     const container = document.getElementById('quick-select-buttons');
-    laws.forEach(law => {
-      const btn = document.createElement('button');
-      btn.className = 'quick-btn';
-      btn.textContent = law.law_title;
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        searchInput.value = law.search_query;
-        doSearch(law.search_query);
+    groups.forEach(group => {
+      // Group wrapper
+      const groupEl = document.createElement('div');
+      groupEl.className = 'quick-group';
+
+      // Group label
+      const label = document.createElement('span');
+      label.className = 'quick-group-label';
+      label.textContent = group.group;
+      groupEl.appendChild(label);
+
+      // Buttons row
+      const btnsEl = document.createElement('div');
+      btnsEl.className = 'quick-group-buttons';
+      group.laws.forEach(law => {
+        const btn = document.createElement('button');
+        btn.className = 'quick-btn';
+        btn.textContent = law.law_title;
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          searchInput.value = law.search_query;
+          doSearch(law.search_query);
+        });
+        btnsEl.appendChild(btn);
       });
-      container.appendChild(btn);
+      groupEl.appendChild(btnsEl);
+      container.appendChild(groupEl);
     });
   } catch (_) {}
 }
