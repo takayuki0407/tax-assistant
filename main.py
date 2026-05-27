@@ -24,7 +24,7 @@ from app.markdown_generator import (
 )
 from app.models import LawSearchResult, MarkdownResponse
 from app.tsutatsu_scraper import CATALOG as TSUTATSU_CATALOG, scrape_tsutatsu
-from app.tsutatsu_md import generate_tsutatsu_markdown
+from app.tsutatsu_md import generate_tsutatsu_markdown, tsutatsu_filename
 from app.xml_parser import parse_law_tree
 
 
@@ -199,18 +199,11 @@ async def stream_tsutatsu(key: str):
                     yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
                     return
 
-            # Build ZIP from collected pages
-            md_files = generate_tsutatsu_markdown(title, pages)
-            buf = io.BytesIO()
-            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-                for fname, content in md_files:
-                    zi = zipfile.ZipInfo(fname)
-                    zi.compress_type = zipfile.ZIP_DEFLATED
-                    zi.flag_bits |= 0x800  # UTF-8 EFS
-                    zf.writestr(zi, content.encode("utf-8"))
-            _tsutatsu_results[job_id] = buf.getvalue()
+            # Build single .md file
+            md_content = generate_tsutatsu_markdown(title, pages)
+            _tsutatsu_results[job_id] = md_content.encode("utf-8")
 
-            done_evt = {"type": "done", "job_id": job_id, "files": len(md_files)}
+            done_evt = {"type": "done", "job_id": job_id, "chars": len(md_content)}
             yield f"data: {json.dumps(done_evt, ensure_ascii=False)}\n\n"
 
         except Exception as e:
@@ -226,7 +219,7 @@ async def stream_tsutatsu(key: str):
 
 @app.get("/api/tsutatsu/{key}/result/{job_id}")
 async def download_tsutatsu_result(key: str, job_id: str):
-    """Download ZIP produced by the stream endpoint."""
+    """Download single .md file produced by the stream endpoint."""
     data = _tsutatsu_results.pop(job_id, None)
     if data is None:
         raise HTTPException(
@@ -234,11 +227,11 @@ async def download_tsutatsu_result(key: str, job_id: str):
             detail="結果が見つかりません（既にダウンロード済みかタイムアウトした可能性があります）",
         )
     title = TSUTATSU_CATALOG.get(key, {}).get("title", key)
-    zip_filename = _safe_filename(title, ".zip")
-    encoded_name = urllib.parse.quote(zip_filename)
+    md_filename = _safe_filename(title, ".md")
+    encoded_name = urllib.parse.quote(md_filename)
     return Response(
         content=data,
-        media_type="application/zip",
+        media_type="text/markdown; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"},
     )
 

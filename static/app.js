@@ -138,8 +138,8 @@ async function doFetchTsutatsu(key, title, clickedBtn) {
         es.close();
         done = true;
         tsutatsuBarFill.style.width = '95%';
-        tsutatsuLabel.textContent = 'ZIPをダウンロード中…';
-        tsutatsuFrac.textContent = `${data.files} ファイル`;
+        tsutatsuLabel.textContent = '.mdをダウンロード中…';
+        tsutatsuFrac.textContent = data.chars ? `${data.chars.toLocaleString()} 文字` : '';
 
         try {
           const dlResp = await fetch(`/api/tsutatsu/${key}/result/${data.job_id}`);
