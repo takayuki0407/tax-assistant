@@ -53,6 +53,8 @@ def generate_markdown(doc: LawDocument) -> str:
 def generate_split_markdown(doc: LawDocument) -> list[tuple[str, str]]:
     """Returns list of (filename, content) for each chapter."""
     files: list[tuple[str, str]] = []
+    seen_filenames: dict[str, int] = {}  # base → count（重複回避用）
+
     for ch in doc.chapters:
         lines: list[str] = []
         title = ch.title if ch.num != "0" else doc.law_title
@@ -72,7 +74,13 @@ def generate_split_markdown(doc: LawDocument) -> list[tuple[str, str]]:
         encoded = base.encode("utf-8")
         if len(encoded) > 200:
             base = encoded[:200].decode("utf-8", errors="ignore") + "…"
+        # 同名章（例: 所得税法 第一章 通則 が複数の編に存在）でファイル名衝突を回避
         filename = f"{base}.md"
+        if filename in seen_filenames:
+            seen_filenames[filename] += 1
+            filename = f"{base}_{seen_filenames[filename]}.md"
+        else:
+            seen_filenames[filename] = 1
         files.append((filename, "\n".join(lines)))
     return files
 

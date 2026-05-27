@@ -47,12 +47,16 @@ def parse_law_tree(tree: dict, metadata: dict | None = None) -> LawDocument:
         chapters.extend(_parse_main_provision(main))
 
     # 各 SupplProvision を Section として保持（ラベル付き）
-    # 制定附則（AmendLawNum なし）と改正附則（AmendLawNum あり）を区別できる
+    # SupplProvisionLabel テキスト自体は全件「附　則」のことが多く、
+    # 制定/改正の区別は AmendLawNum 属性（改正附則のみ存在）で行う
     suppl_sections: list[Section] = []
     for idx, suppl in enumerate(_find_all(body, "SupplProvision")):
-        label_text = _child_text(suppl, "SupplProvisionLabel")
-        if not label_text:
-            label_text = f"附則（{idx + 1}）"
+        label_text = _child_text(suppl, "SupplProvisionLabel") or "附則"
+        amend_num = suppl.get("attr", {}).get("AmendLawNum", "")
+        if amend_num:
+            # 改正附則: "附　則（令和○年...法律第○号）" 形式にする
+            label_text = f"{label_text}（{amend_num}）"
+        # AmendLawNum なし → 制定附則（"附　則" のまま）
         articles = _collect_suppl_articles(suppl)
         if articles:
             suppl_sections.append(
