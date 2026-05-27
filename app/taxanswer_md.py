@@ -50,6 +50,12 @@ def generate_taxanswer_markdown(title: str, articles: list[dict]) -> str:
                     lines.append(f"- {li}")
                 lines.append("")
 
+            elif t == "table":
+                md = item.get("markdown", "").strip()
+                if md:
+                    lines.append(md)
+                    lines.append("")
+
         lines.append("---")
         lines.append("")
 

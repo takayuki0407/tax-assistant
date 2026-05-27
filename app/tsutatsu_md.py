@@ -75,3 +75,9 @@ def _render_item(item: dict, lines: list[str]) -> None:
         for li in item.get("items", []):
             lines.append(f"- {li}")
         lines.append("")
+
+    elif t == "table":
+        md = item.get("markdown", "").strip()
+        if md:
+            lines.append(md)
+            lines.append("")

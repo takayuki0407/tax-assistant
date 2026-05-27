@@ -8,6 +8,8 @@ from typing import AsyncGenerator
 import httpx
 from bs4 import BeautifulSoup
 
+from .html_utils import table_to_markdown
+
 BASE_URL = "https://www.nta.go.jp"
 REQUEST_DELAY = 0.4  # seconds between requests (be polite)
 TIMEOUT = 30.0
@@ -208,6 +210,7 @@ def _extract_content(html: str) -> list[dict]:
     pending_caption: str | None = None   # H captured before an article
     pending_sublist: list[str] = []      # (1)(2)… items for current article
     pending_list: list[str] | None = None  # <li> accumulator
+    skip_ids: set[int] = set()           # id() of elements inside processed tables
 
     def _flush_sublist() -> None:
         """Attach accumulated sub-items as list to last article."""
@@ -226,6 +229,9 @@ def _extract_content(html: str) -> list[dict]:
         ["h1", "h2", "h3", "h4", "h5", "p", "li", "dt", "dd", "table"],
         recursive=True,
     ):
+        if id(elem) in skip_ids:
+            continue
+
         tag = elem.name
 
         # ── <li> accumulation ─────────────────────────────────
@@ -239,10 +245,17 @@ def _extract_content(html: str) -> list[dict]:
 
         _flush_li()
 
-        # ── Table placeholder ─────────────────────────────────
+        # ── Table → Markdown ──────────────────────────────────
         if tag == "table":
             _flush_sublist()
-            items.append({"type": "para", "text": "[表省略]"})
+            md = table_to_markdown(elem)
+            if md:
+                items.append({"type": "table", "markdown": md})
+            else:
+                items.append({"type": "para", "text": "[表省略]"})
+            # テーブル内の子孫要素を以降の反復から除外
+            for desc in elem.find_all(True):
+                skip_ids.add(id(desc))
             pending_caption = None
             continue
 

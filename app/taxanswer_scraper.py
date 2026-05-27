@@ -8,6 +8,8 @@ from typing import AsyncGenerator
 import httpx
 from bs4 import BeautifulSoup
 
+from .html_utils import table_to_markdown
+
 BASE_URL = "https://www.nta.go.jp"
 INDEX_PATH = "/taxes/shiraberu/taxanswer/code/index.htm"
 REQUEST_DELAY = 0.3   # seconds between requests
@@ -106,6 +108,7 @@ def _extract_article(html: str) -> dict | None:
       {"type": "heading", "level": int, "text": str}
       {"type": "para",    "text": str}
       {"type": "list",    "items": list[str]}
+      {"type": "table",   "markdown": str}
     """
     soup = BeautifulSoup(html, "html.parser")
     for t in soup.find_all(["script", "style", "nav", "footer", "header"]):
@@ -130,6 +133,7 @@ def _extract_article(html: str) -> dict | None:
 
     items: list[dict] = []
     li_buf: list[str] = []
+    skip_ids: set[int] = set()   # id() of elements inside already-processed tables
 
     def _flush_li() -> None:
         if li_buf:
@@ -137,10 +141,25 @@ def _extract_article(html: str) -> dict | None:
             li_buf.clear()
 
     for elem in main.find_all(
-        ["h2", "h3", "h4", "p", "li", "dt", "dd"],
+        ["h2", "h3", "h4", "p", "li", "dt", "dd", "table"],
         recursive=True,
     ):
+        if id(elem) in skip_ids:
+            continue
+
         tag = elem.name
+
+        # ── Table → Markdown ──────────────────────────────
+        if tag == "table":
+            _flush_li()
+            md = table_to_markdown(elem)
+            if md:
+                items.append({"type": "table", "markdown": md})
+            # Mark all descendants so they aren't processed again
+            for desc in elem.find_all(True):
+                skip_ids.add(id(desc))
+            continue
+
         text = _clean_text(elem.get_text())
         if not text:
             continue
@@ -152,7 +171,6 @@ def _extract_article(html: str) -> dict | None:
         _flush_li()
 
         if tag in ("h2", "h3", "h4"):
-            # Skip heading that is the same as h1 title
             if text == title:
                 continue
             level = {"h2": 3, "h3": 4, "h4": 4}[tag]
@@ -165,7 +183,7 @@ def _extract_article(html: str) -> dict | None:
     # Drop leading navigation lists
     first_real = next(
         (i for i, it in enumerate(items)
-         if it["type"] == "heading"
+         if it["type"] in ("heading", "table")
          or (it["type"] == "para" and not any(w in it["text"] for w in _NAV_WORDS))),
         0,
     )
