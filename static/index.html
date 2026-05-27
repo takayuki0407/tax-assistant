@@ -15,10 +15,10 @@
   </header>
 
   <main>
-    <!-- Section 0: 基本通達 -->
+    <!-- Section 0a: 基本通達・措置法通達 -->
     <section class="card" id="section-tsutatsu">
-      <h2>基本通達を取得 <span class="badge-nta">国税庁</span></h2>
-      <p class="section-note">国税庁の基本通達をスクレイピングしてNotebookLM用Markdownに変換します（1通達あたり1〜2分かかります）</p>
+      <h2>通達を取得 <span class="badge-nta">国税庁</span></h2>
+      <p class="section-note">国税庁の基本通達・措置法通達をスクレイピングしてNotebookLM用Markdownに変換します（1通達あたり1〜5分かかります）</p>
       <div class="tsutatsu-grid" id="tsutatsu-grid">
         <!-- JS で生成 -->
       </div>
@@ -32,6 +32,25 @@
         </div>
       </div>
       <div id="tsutatsu-error" class="error-banner hidden"></div>
+    </section>
+
+    <!-- Section 0b: タックスアンサー -->
+    <section class="card" id="section-taxanswer">
+      <h2>タックスアンサーを取得 <span class="badge-nta">国税庁</span></h2>
+      <p class="section-note">国税庁のよくある税の質問（タックスアンサー）をカテゴリ別にMarkdownに変換します（1カテゴリあたり1〜3分かかります）</p>
+      <div class="tsutatsu-grid" id="taxanswer-grid">
+        <!-- JS で生成 -->
+      </div>
+      <div id="taxanswer-progress" class="tsutatsu-progress hidden">
+        <div class="batch-progress-header">
+          <span id="taxanswer-label">取得中…</span>
+          <span id="taxanswer-frac"></span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="taxanswer-bar-fill"></div>
+        </div>
+      </div>
+      <div id="taxanswer-error" class="error-banner hidden"></div>
     </section>
 
     <!-- Section 1: 検索 -->
@@ -153,7 +172,7 @@
   <footer>
     <p>
       法令データ: <a href="https://laws.e-gov.go.jp" target="_blank" rel="noopener">e-Gov法令検索</a>（総務省） ／
-      基本通達: <a href="https://www.nta.go.jp" target="_blank" rel="noopener">国税庁</a>
+      通達・タックスアンサー: <a href="https://www.nta.go.jp" target="_blank" rel="noopener">国税庁</a>
     </p>
   </footer>
 

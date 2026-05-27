@@ -13,6 +13,7 @@ REQUEST_DELAY = 0.4  # seconds between requests (be polite)
 TIMEOUT = 30.0
 
 CATALOG: dict[str, dict] = {
+    # ── 基本通達 ────────────────────────────────────────────────────────────
     "hojin": {
         "title": "法人税基本通達",
         "toc_path": "/law/tsutatsu/kihon/hojin/01.htm",
@@ -32,6 +33,37 @@ CATALOG: dict[str, dict] = {
         "title": "相続税法基本通達",
         "toc_path": "/law/tsutatsu/kihon/sisan/sozoku2/01.htm",
         "content_prefix": "/law/tsutatsu/kihon/sisan/sozoku2/",
+    },
+    "hyoka": {
+        "title": "財産評価基本通達",
+        "toc_path": "/law/tsutatsu/kihon/sisan/hyoka_new/01.htm",
+        "content_prefix": "/law/tsutatsu/kihon/sisan/hyoka_new/",
+    },
+    "renketsu": {
+        "title": "連結納税基本通達",
+        "toc_path": "/law/tsutatsu/kihon/renketsu/01.htm",
+        "content_prefix": "/law/tsutatsu/kihon/renketsu/",
+    },
+    # ── 措置法通達（deep_toc: 2段階クロール）───────────────────────────────
+    # index ページが各通達の 01.htm のみにリンクしているため、
+    # 01.htm から更にコンテンツページを収集する必要がある
+    "sochiho_hojin": {
+        "title": "法人税法関係措置法通達",
+        "toc_path": "/law/tsutatsu/kobetsu/hojin/sochiho/sotihou.htm",
+        "content_prefix": "/law/tsutatsu/kobetsu/hojin/sochiho/",
+        "deep_toc": True,
+    },
+    "sochiho_shotoku": {
+        "title": "所得税法関係措置法通達",
+        "toc_path": "/law/tsutatsu/kobetsu/shotoku/sochiho/sotihou.htm",
+        "content_prefix": "/law/tsutatsu/kobetsu/shotoku/sochiho/",
+        "deep_toc": True,
+    },
+    "sochiho_sozoku": {
+        "title": "相続税・贈与税法関係措置法通達",
+        "toc_path": "/law/tsutatsu/kobetsu/sozoku/sochiho/sotihou.htm",
+        "content_prefix": "/law/tsutatsu/kobetsu/sozoku/sochiho/",
+        "deep_toc": True,
     },
 }
 
@@ -342,6 +374,7 @@ async def scrape_tsutatsu(key: str) -> AsyncGenerator[dict, None]:
     info = CATALOG[key]
     title = info["title"]
     prefix = info["content_prefix"]
+    deep_toc = info.get("deep_toc", False)
 
     async with _make_client() as client:
         # ── Fetch TOC ──────────────────────────────────────────
@@ -352,7 +385,25 @@ async def scrape_tsutatsu(key: str) -> AsyncGenerator[dict, None]:
             return
 
         toc_html = _decode(toc_bytes)
-        links = _extract_toc_links(toc_html, prefix)
+
+        if deep_toc:
+            # 2段階クロール: メインTOC → サブTOC(各通達の01.htm) → コンテンツページ
+            sub_toc_paths = _extract_toc_links(toc_html, prefix)
+            links: list[str] = []
+            seen_content: set[str] = set(sub_toc_paths)  # サブTOCページ自体は除外
+            for sub_path in sub_toc_paths:
+                try:
+                    sub_bytes = await _fetch(sub_path, client)
+                    sub_html = _decode(sub_bytes)
+                    for link in _extract_toc_links(sub_html, prefix):
+                        if link not in seen_content:
+                            seen_content.add(link)
+                            links.append(link)
+                    await asyncio.sleep(REQUEST_DELAY)
+                except TsutatsuError:
+                    pass
+        else:
+            links = _extract_toc_links(toc_html, prefix)
 
         if not links:
             yield {

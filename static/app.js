@@ -46,9 +46,18 @@ const tsutatsuFrac     = document.getElementById('tsutatsu-frac');
 const tsutatsuBarFill  = document.getElementById('tsutatsu-bar-fill');
 const tsutatsuError    = document.getElementById('tsutatsu-error');
 
+// TaxAnswer elements
+const taxanswerGrid     = document.getElementById('taxanswer-grid');
+const taxanswerProgress = document.getElementById('taxanswer-progress');
+const taxanswerLabel    = document.getElementById('taxanswer-label');
+const taxanswerFrac     = document.getElementById('taxanswer-frac');
+const taxanswerBarFill  = document.getElementById('taxanswer-bar-fill');
+const taxanswerError    = document.getElementById('taxanswer-error');
+
 // ── Init ───────────────────────────────────────────────────────────────────
 loadQuickSelect();
 loadTsutatsuList();
+loadTaxAnswerList();
 searchBtn.addEventListener('click', () => doSearch(searchInput.value.trim()));
 searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(searchInput.value.trim()); });
 generateBtn.addEventListener('click', doGenerate);
@@ -182,7 +191,109 @@ async function doFetchTsutatsu(key, title, clickedBtn) {
 }
 
 function _resetTsutatsuButtons() {
-  document.querySelectorAll('.tsutatsu-btn').forEach(b => {
+  document.querySelectorAll('#tsutatsu-grid .tsutatsu-btn').forEach(b => {
+    b.disabled = false;
+    b.classList.remove('active');
+  });
+}
+
+// ── タックスアンサー ──────────────────────────────────────────────────────────
+async function loadTaxAnswerList() {
+  try {
+    const resp = await fetch('/api/taxanswer');
+    const list = await resp.json();
+    list.forEach(item => {
+      const btn = document.createElement('button');
+      btn.className = 'tsutatsu-btn';
+      btn.dataset.key = item.key;
+      btn.innerHTML = `<span class="tsutatsu-btn-title">${esc(item.title)}</span>`
+                    + `<span style="font-size:.75rem;color:inherit;opacity:.75;margin-top:2px">${item.article_count}件</span>`;
+      btn.addEventListener('click', () => doFetchTaxAnswer(item.key, item.title, btn));
+      taxanswerGrid.appendChild(btn);
+    });
+  } catch (_) {}
+}
+
+async function doFetchTaxAnswer(key, title, clickedBtn) {
+  taxanswerError.classList.add('hidden');
+
+  document.querySelectorAll('#taxanswer-grid .tsutatsu-btn').forEach(b => {
+    b.disabled = true;
+    b.classList.remove('active');
+  });
+  clickedBtn.classList.add('active');
+
+  taxanswerProgress.classList.remove('hidden');
+  taxanswerLabel.textContent = `${title} を取得中…`;
+  taxanswerFrac.textContent = '';
+  taxanswerBarFill.style.width = '0%';
+  taxanswerProgress.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  return new Promise((resolve) => {
+    const es = new EventSource(`/api/taxanswer/${key}/stream`);
+    let done = false;
+
+    es.onmessage = async (e) => {
+      let data;
+      try { data = JSON.parse(e.data); } catch { return; }
+
+      if (data.type === 'start') {
+        taxanswerFrac.textContent = `0 / ${data.total}`;
+      } else if (data.type === 'progress') {
+        const pct = data.total > 0 ? Math.min((data.done / data.total) * 90, 90) : 0;
+        taxanswerBarFill.style.width = `${pct}%`;
+        taxanswerFrac.textContent = `${data.done} / ${data.total}`;
+        taxanswerLabel.textContent = `${title} — No.${data.article} を取得中`;
+
+      } else if (data.type === 'done') {
+        es.close();
+        done = true;
+        taxanswerBarFill.style.width = '95%';
+        taxanswerLabel.textContent = '.mdをダウンロード中…';
+        taxanswerFrac.textContent = data.chars ? `${data.chars.toLocaleString()} 文字 / ${data.article_count}件` : '';
+
+        try {
+          const dlResp = await fetch(`/api/taxanswer/${key}/result/${data.job_id}`);
+          if (!dlResp.ok) throw new Error(`ダウンロードエラー: HTTP ${dlResp.status}`);
+          const blob = await dlResp.blob();
+          const url = URL.createObjectURL(blob);
+          triggerDownload(url, _extractFilenameRfc6266(dlResp) || `タックスアンサー_${title}.md`);
+          setTimeout(() => URL.revokeObjectURL(url), 15000);
+        } catch (err) {
+          taxanswerError.textContent = `エラー: ${err.message}`;
+          taxanswerError.classList.remove('hidden');
+        }
+
+        taxanswerBarFill.style.width = '100%';
+        taxanswerLabel.textContent = `完了: ${title}`;
+        _resetTaxAnswerButtons();
+        resolve();
+
+      } else if (data.type === 'error') {
+        es.close();
+        done = true;
+        taxanswerError.textContent = `エラー: ${data.message}`;
+        taxanswerError.classList.remove('hidden');
+        taxanswerProgress.classList.add('hidden');
+        _resetTaxAnswerButtons();
+        resolve();
+      }
+    };
+
+    es.onerror = () => {
+      if (done) return;
+      es.close();
+      taxanswerError.textContent = 'エラー: タックスアンサーの取得中に接続が切断されました';
+      taxanswerError.classList.remove('hidden');
+      taxanswerProgress.classList.add('hidden');
+      _resetTaxAnswerButtons();
+      resolve();
+    };
+  });
+}
+
+function _resetTaxAnswerButtons() {
+  document.querySelectorAll('#taxanswer-grid .tsutatsu-btn').forEach(b => {
     b.disabled = false;
     b.classList.remove('active');
   });

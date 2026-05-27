@@ -25,6 +25,8 @@ from app.markdown_generator import (
 from app.models import LawSearchResult, MarkdownResponse
 from app.tsutatsu_scraper import CATALOG as TSUTATSU_CATALOG, scrape_tsutatsu
 from app.tsutatsu_md import generate_tsutatsu_markdown, tsutatsu_filename
+from app.taxanswer_scraper import TAXANSWER_CATALOG, scrape_taxanswer
+from app.taxanswer_md import generate_taxanswer_markdown, taxanswer_filename
 from app.xml_parser import parse_law_tree
 
 
@@ -51,6 +53,7 @@ QUICK_SELECT_LAWS = [
     {"law_title": "法人税法", "search_query": "法人税法"},
     {"law_title": "消費税法", "search_query": "消費税法"},
     {"law_title": "相続税法", "search_query": "相続税法"},
+    {"law_title": "贈与税（相続税法）", "search_query": "相続税法"},
     {"law_title": "租税特別措置法", "search_query": "租税特別措置法"},
     {"law_title": "法人税法施行令", "search_query": "法人税法施行令"},
     {"law_title": "所得税法施行令", "search_query": "所得税法施行令"},
@@ -228,6 +231,84 @@ async def download_tsutatsu_result(key: str, job_id: str):
         )
     title = TSUTATSU_CATALOG.get(key, {}).get("title", key)
     md_filename = _safe_filename(title, ".md")
+    encoded_name = urllib.parse.quote(md_filename)
+    return Response(
+        content=data,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"},
+    )
+
+
+# ── タックスアンサー endpoints ─────────────────────────────────────────────────
+
+# In-memory store for taxanswer results (job_id → bytes)
+_taxanswer_results: dict[str, bytes] = {}
+
+
+@app.get("/api/taxanswer", response_model=list[dict])
+async def get_taxanswer_list():
+    """Return list of available タックスアンサー categories."""
+    return [
+        {"key": key, "title": info["title"], "article_count": info["article_count"]}
+        for key, info in TAXANSWER_CATALOG.items()
+    ]
+
+
+@app.get("/api/taxanswer/{key}/stream")
+async def stream_taxanswer(key: str):
+    """SSE stream: progress events while scraping, then emits job_id when done."""
+    if key not in TAXANSWER_CATALOG:
+        raise HTTPException(status_code=404, detail="カテゴリが見つかりません")
+
+    async def generator():
+        job_id = str(uuid.uuid4())
+        title = TAXANSWER_CATALOG[key]["title"]
+
+        try:
+            articles: list[dict] = []
+            async for event in scrape_taxanswer(key):
+                etype = event.get("type")
+                if etype in ("start", "progress"):
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                elif etype == "articles":
+                    articles = event.get("articles", [])
+                elif etype == "error":
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                    return
+
+            md_content = generate_taxanswer_markdown(title, articles)
+            _taxanswer_results[job_id] = md_content.encode("utf-8")
+
+            done_evt = {
+                "type": "done",
+                "job_id": job_id,
+                "chars": len(md_content),
+                "article_count": len(articles),
+            }
+            yield f"data: {json.dumps(done_evt, ensure_ascii=False)}\n\n"
+
+        except Exception as e:
+            err = {"type": "error", "message": str(e)}
+            yield f"data: {json.dumps(err, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/api/taxanswer/{key}/result/{job_id}")
+async def download_taxanswer_result(key: str, job_id: str):
+    """Download single .md file produced by the stream endpoint."""
+    data = _taxanswer_results.pop(job_id, None)
+    if data is None:
+        raise HTTPException(
+            status_code=404,
+            detail="結果が見つかりません（既にダウンロード済みかタイムアウトした可能性があります）",
+        )
+    title = TAXANSWER_CATALOG.get(key, {}).get("title", key)
+    md_filename = _safe_filename(f"タックスアンサー_{title}", ".md")
     encoded_name = urllib.parse.quote(md_filename)
     return Response(
         content=data,
