@@ -4,6 +4,9 @@ from datetime import date
 from .models import LawDocument, Chapter, Section, Article, Paragraph, Item
 
 MAX_SINGLE_FILE_CHARS = 400_000
+# 附則に多数の SupplProvision がある場合（所得税法は 351 件）、
+# 目次に全件展開すると読みにくくなるため、この閾値を超えたら章レベルのみ表示する
+TOC_SECTION_EXPAND_LIMIT = 30
 
 
 def generate_markdown(doc: LawDocument) -> str:
@@ -33,8 +36,9 @@ def generate_markdown(doc: LawDocument) -> str:
         if ch.num == "0":
             continue
         lines.append(f"- [{ch.title}](#{_anchor(ch.title)})")
-        for sec in ch.sections:
-            lines.append(f"  - [{sec.title}](#{_anchor(sec.title)})")
+        if len(ch.sections) <= TOC_SECTION_EXPAND_LIMIT:
+            for sec in ch.sections:
+                lines.append(f"  - [{sec.title}](#{_anchor(sec.title)})")
     lines.append("")
     lines.append("---")
     lines.append("")

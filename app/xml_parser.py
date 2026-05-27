@@ -8,6 +8,7 @@ from .models import (
     LawDocument, Chapter, Section, Article, Paragraph, Item, SubItem
 )
 
+
 _SKIP_TAGS = {"TableStruct", "Fig", "ArithFormula", "QuoteStruct", "TOC"}
 _PLACEHOLDER = "[表・図省略]"
 
@@ -45,13 +46,22 @@ def parse_law_tree(tree: dict, metadata: dict | None = None) -> LawDocument:
     if main is not None:
         chapters.extend(_parse_main_provision(main))
 
-    # Merge all SupplProvisions into one "附則" chapter
-    suppl_articles: list[Article] = []
-    for suppl in _find_all(body, "SupplProvision"):
+    # 各 SupplProvision を Section として保持（ラベル付き）
+    # 制定附則（AmendLawNum なし）と改正附則（AmendLawNum あり）を区別できる
+    suppl_sections: list[Section] = []
+    for idx, suppl in enumerate(_find_all(body, "SupplProvision")):
+        label_text = _child_text(suppl, "SupplProvisionLabel")
+        if not label_text:
+            label_text = f"附則（{idx + 1}）"
         articles = _collect_suppl_articles(suppl)
-        suppl_articles.extend(articles)
-    if suppl_articles:
-        chapters.append(Chapter(num="附則", title="附　則", sections=[], articles=suppl_articles))
+        if articles:
+            suppl_sections.append(
+                Section(num=str(idx), title=label_text, articles=articles)
+            )
+    if suppl_sections:
+        chapters.append(
+            Chapter(num="附則", title="附　則", sections=suppl_sections, articles=[])
+        )
 
     law_id = attr.get("LawId", "")
 
@@ -67,14 +77,37 @@ def parse_law_tree(tree: dict, metadata: dict | None = None) -> LawDocument:
 
 def _parse_main_provision(main: dict) -> list[Chapter]:
     chapters: list[Chapter] = []
+
+    # Case 1: Part (編) 構造 — 所得税法・法人税法など
+    part_els = _find_all(main, "Part")
+    if part_els:
+        for part_el in part_els:
+            part_num = part_el.get("attr", {}).get("Num", "")
+            part_title = _child_text(part_el, "PartTitle") or f"第{part_num}編"
+            chapter_els = _find_all(part_el, "Chapter")
+            if chapter_els:
+                # 通常ケース: Part 内の Chapter を既存 _parse_chapter で処理
+                for ch_el in chapter_els:
+                    chapters.append(_parse_chapter(ch_el))
+            else:
+                # 例外ケース: Chapter なしで Article が直下（所得税法 第六編 など）
+                articles = [_parse_article(a) for a in _find_all(part_el, "Article")]
+                if articles:
+                    chapters.append(Chapter(num=part_num, title=part_title,
+                                            sections=[], articles=articles))
+        return chapters
+
+    # Case 2: Chapter が直下にある（消費税法・相続税法など）
     chapter_els = _find_all(main, "Chapter")
     if chapter_els:
         for ch_el in chapter_els:
             chapters.append(_parse_chapter(ch_el))
-    else:
-        articles = [_parse_article(a) for a in _find_all(main, "Article")]
-        if articles:
-            chapters.append(Chapter(num="0", title="", articles=articles))
+        return chapters
+
+    # Case 3: Article が直下にある（省令など）
+    articles = [_parse_article(a) for a in _find_all(main, "Article")]
+    if articles:
+        chapters.append(Chapter(num="0", title="", articles=articles))
     return chapters
 
 
